@@ -1,0 +1,143 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Growth Chart Demo</title>
+</head>
+<body>
+    <div id="chart">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js"></script>
+
+    <script>
+        $(function () {
+            var onSuccess = function (csv) {
+                var chartData = parseCsv(csv);
+                var chart = renderChart(chartData);
+            }
+
+            $.ajax({
+                type: "GET",
+                url: "data.csv",
+                dataType: "text",
+                success: onSuccess
+            });
+        });
+
+        function parseCsv(csv) {            
+            var dayToMonthFactor = 30.4375;
+            var dataReductionFactor = dayToMonthFactor * 2;
+
+            // Pull csv into array of labels and values
+            var data = [];
+            var rows = csv.split('\n');
+            for (var i = 1; i <= rows.length - 1; i += dataReductionFactor) {
+                var row = rows[Math.ceil(i)];
+                if (row) {
+                    var columns = rows[Math.ceil(i)].split(',');
+
+                    // Col 0 = Day, Col 6 = 3rd, Col 9 = 15th,  Col 11 = 50th, Col 13 = 85th, Col 16 = 97th
+                    data.push({
+                        day: columns[0],
+                        month: parseInt(columns[0] / dayToMonthFactor),
+                        year: parseInt(columns[0] / (dayToMonthFactor * 12)) + 1,
+                        p3: parseFloat(columns[6]),
+                        p15: parseFloat(columns[9]),
+                        p50: parseFloat(columns[11]),
+                        p85: parseFloat(columns[13]),
+                        p97: parseFloat(columns[16])
+                    });
+                }
+            }
+
+            // Convert csv data to chart js data structure
+            var chartData = {
+                labels: data.map(function (item) { return item.month + ';' + item.year; }),
+                datasets: [
+                    {
+                        label: "3rd Percentile",
+                        data: data.map(function (item) { return item.p3 }),
+                        backgroundColor: '#0f0',
+                        borderColor: '#0f0',
+                        fill: false
+                    },
+                    {
+                        label: "15th Percentile",
+                        data: data.map(function (item) { return item.p15 }),
+                        backgroundColor: '#00f',
+                        borderColor: '#00f',
+                        fill: false
+                    },
+                    {
+                        label: "50th Percentile",
+                        data: data.map(function (item) { return item.p50 }),
+                        backgroundColor: '#f00',
+                        borderColor: '#f00',
+                        fill: false
+                    },
+                    {
+                        label: "85th Percentile",
+                        data: data.map(function (item) { return item.p85 }),
+                        backgroundColor: '#ff0',
+                        borderColor: '#ff0',
+                        fill: false
+                    },
+                    {
+                        label: "97th Percentile",
+                        data: data.map(function (item) { return item.p97 }),
+                        backgroundColor: '#0ff',
+                        borderColor: '#0ff',
+                        fill: false
+                    }
+                ]
+            };
+
+            return chartData;
+        }
+
+        function renderChart(chartData) {
+            var ctx = document.getElementById("canvas").getContext("2d");
+
+            var chart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    legend: {
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'WHO Growth Chart'
+                    },
+                    scales: {
+                        xAxes: [
+                            {
+                                id: 'xAxis1',
+                                ticks: {
+                                    callback: function (label) {
+                                        var month = label.split(";")[0];
+                                        return month;
+                                    }
+                                }
+                            },
+                            {
+                                id: 'xAxis2',
+                                ticks: {
+                                    callback: function (label) {
+                                        var month = parseInt(label.split(";")[0]);
+                                        var year = label.split(";")[1];
+                                        return month % 12 == 6 ? "Year " + year : "";
+                                    }
+                                }
+                            }]
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
