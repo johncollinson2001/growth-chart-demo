@@ -5,6 +5,13 @@
     <title>Growth Chart Demo</title>
 </head>
 <body>
+    <div>
+        <label>Age in months: </label>
+        <input id="age" type="number" placeholder="Age in months" />
+        <label>Height in cm: </label>
+        <input id="height" type="number" placeholder="Height in cm" />
+    </div>
+
     <div id="chart">
         <canvas id="canvas"></canvas>
     </div>
@@ -14,21 +21,63 @@
 
     <script>
         $(function () {
-            var onSuccess = function (csv) {
-                var chartData = parseCsv(csv);
-                var chart = renderChart(chartData);
+            var $age = $('#age');
+            var $height = $('#height');
+            var chart = null;
+            var isPointOnChart;
+
+            // Function to run when user has keyed in parameters
+            var onUpdateParameters = function () {
+                var age = parseInt($age.val());
+                var height = parseFloat($height.val());
+
+                // Remove existing point if it exists
+                if (isPointOnChart)
+                    chart.data.datasets.shift();
+
+                // Check both values have been keyed and are within range
+                if (age >= 0 && age <= 60 && height >= 40 && height <= 120) {
+                    var data = [];
+                    for (var i = 0; i <= age; i++) {
+                        data.push(i == age ? height : null);
+                    }
+
+                    chart.data.datasets.unshift({
+                        label: "Height in cm",
+                        data: data,
+                        backgroundColor: '#000',
+                        borderColor: '#000',
+                        radius: 10
+                    });
+                    
+                    isPointOnChart = true;
+                } else {
+                    isPointOnChart = false;
+                }
+
+                chart.update();
             }
 
+            // Assign event handlers to input boxes
+            $age.change(onUpdateParameters);
+            $height.change(onUpdateParameters);
+
+            // Fetch data from server
             $.ajax({
                 type: "GET",
                 url: "data.csv",
                 dataType: "text",
-                success: onSuccess
+                success: function (csv) {
+                    var chartData = parseCsv(csv);
+                    chart = renderChart(chartData);
+                }
             });
         });
 
+        // Function to parse csv data into a chart js data structure that can be rendered
         function parseCsv(csv) {            
             var dayToMonthFactor = 30.4375;
+
             // Map csv into array
             var data = [];
             var rows = csv.split('\n');
@@ -55,7 +104,7 @@
                     return item;
             });
 
-            // Convert csv data to chart js data structure
+            // Convert data to chart js data structure
             var chartData = {
                 labels: data.map(function (item) { return item.month + ';' + item.year; }),
                 datasets: [
@@ -100,20 +149,17 @@
             return chartData;
         }
 
+        // Function to render a chart
         function renderChart(chartData) {
             var ctx = document.getElementById("canvas").getContext("2d");
 
-            var chart = new Chart(ctx, {
+            return new Chart(ctx, {
                 type: 'line',
                 data: chartData,
                 options: {
-                    responsive: true,
-                    legend: {
-                        position: 'top'
-                    },
                     title: {
                         display: true,
-                        text: 'WHO Growth Chart - Boys Height for Age Percentiles'
+                        text: 'WHO Growth Chart - Boys Height for Age'
                     },
                     scales: {
                         xAxes: [
@@ -122,7 +168,7 @@
                                 ticks: {
                                     callback: function (label) {
                                         var month = label.split(";")[0];
-                                        return month;
+                                        return month % 3 == 0 ? month : "";
                                     }
                                 }
                             },
@@ -135,7 +181,8 @@
                                         return month % 12 == 6 ? "Year " + year : "";
                                     }
                                 }
-                            }]
+                            }
+                        ]
                     }
                 }
             });
